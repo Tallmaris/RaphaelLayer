@@ -1,4 +1,4 @@
-(function() {
+(function(L) {
 
 var R, originalR;
 
@@ -17,9 +17,11 @@ if (typeof exports != 'undefined') {
 	window.R = R;
 }
 
-R.version = '0.1.1';
+R.version = '0.1.2';
 
 R.Layer = L.Class.extend({
+	includes: L.Mixin.Events,
+	
 	initialize: function(options) {
 		
 	},
@@ -164,7 +166,6 @@ R.Pulse = R.Layer.extend({
 });
 
 R.Polyline = R.Layer.extend({
-	includes: L.Mixin.Events,
 	
 	initialize: function(latlngs, attr, options) {
 		R.Layer.prototype.initialize.call(this, options);
@@ -194,7 +195,6 @@ R.Polyline = R.Layer.extend({
 });
 
 R.Polygon = R.Layer.extend({
-	includes: L.Mixin.Events,
 	
 	initialize: function(latlngs, attr, options) {
 		R.Layer.prototype.initialize.call(this, options);
@@ -289,38 +289,44 @@ R.Bezier = R.Layer.extend({
 
 	projectLatLngs: function() {
 		if(this._path) this._path.remove();
-		
-		var start = this._map.latLngToLayerPoint(this._latlngs[0]),
-			end = this._map.latLngToLayerPoint(this._latlngs[1]),
-			cp = this.getControlPoint(start, end);
 
-		this._path = this._paper.path('M' + start.x + ' ' + start.y + 'Q' + cp.x + ' ' + cp.y + ' ' + end.x + ' ' + end.y)
-			.attr(this._attr)
-			.toBack();
+        var start = this._map.latLngToLayerPoint(this._latlngs[0]),
+            end = this._map.latLngToLayerPoint(this._latlngs[1]),
+            cp = this.getControlPoints(start, end);
 
-		this._set.push(this._path);
+        this._path = this._paper.path('M' + start.x + ' ' + start.y +
+                                      'C' + cp[0].x + ' ' + cp[0].y + ' ' +
+                                            cp[1].x + ' ' + cp[1].y + ' ' +
+                                            end.x + ' ' + end.y)
+        this._path.attr(this._attr)
+
+        this._path.toBack();
+
+        $('#coords').html("start: " + start.x + " - " + start.y + "<br/>" +
+            "cp1: " + cp[0].x + " - " + cp[0].y + "<br/>" +
+            "cp2: " + cp[1].x + " - " + cp[1].y + "<br/>" +
+            "end: " + end.x + " - " + end.y + "<br/>"
+        )
+
+        this._set.push(this._path);
 	},
 
-	getControlPoint: function(start, end) {
-		var cp = { x: 0, y: 0 };
-		cp.x = start.x + (end.x - [start.x]) / 2;
-		cp.y = start.y + (end.y - [start.y]) / 2;
-		var amp = 0;
+    getControlPoints: function(start, end) {
+        var cp1 = { x: 0, y: 0 };
+        var cp2 = { x: 0, y: 0 };
+        var deltax = Math.floor((end.x - start.x) / 2);
+        var deltay = Math.floor((start.y - end.y) / 2);
 
-		if (this.closeTo(start.x, end.x) && !this.closeTo(start.y, end.y)) {
-			amp = (start.x - end.x) * 1 + 15 * (start.x >= end.x ? 1 : -1);
-			cp.x = Math.max(start.x, end.x) + amp;
-		} else {
-			amp = (end.y - start.y) * 1.5 + 15 * (start.y < end.y ? 1 : -1);
-			cp.y = Math.min(start.y, end.y) + amp;
-		}
-		return cp;
-	},
-
-	closeTo: function(a, b) {
-		var t = 15;
-  		return (a - b > -t && a - b < t);
-	}
+        if (start.y > end.y) {
+            cp1 = { x: start.x, y: start.y - deltay };
+            cp2 = { x: end.x - deltax, y: end.y };
+        }
+        else {
+            cp1 = { x: start.x + deltax, y: start.y };
+            cp2 = { x: end.x, y: end.y + deltay };
+        }
+        return [ cp1, cp2 ];
+    }
 });
 
 R.BezierAnim = R.Layer.extend({
@@ -589,4 +595,4 @@ L.Util.extend(R.GeoJSON, {
 
 
 
-}());
+}(L));
